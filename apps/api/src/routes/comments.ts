@@ -5,6 +5,7 @@ import { query, transaction } from "../db";
 import { conflict, forbidden, notFound } from "../errors";
 import { requireAuth, requireVerifiedContributor } from "../auth";
 import { recordAudit } from "../audit";
+import { assertNoLegalHold } from "../legal-hold";
 
 export async function commentRoutes(app: FastifyInstance) {
   app.get("/features/:id/comments", async (request) => {
@@ -127,6 +128,7 @@ export async function commentRoutes(app: FastifyInstance) {
       const row = result.rows[0];
       if (!row) throw notFound("Comment not found");
       if (row.author_id !== request.user!.id && !["moderator", "admin"].includes(request.user!.role)) throw forbidden();
+      await assertNoLegalHold("comment", params.id, row.author_id);
       await client.query(
         "UPDATE comments SET status = 'deleted', deleted_at = now(), updated_at = now() WHERE id = $1",
         [params.id]

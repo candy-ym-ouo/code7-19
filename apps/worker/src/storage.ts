@@ -60,3 +60,35 @@ export async function objectExists(bucket: string, key: string): Promise<boolean
 export async function deleteObject(bucket: string, key: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
+
+export async function putExportObject(key: string, body: Buffer): Promise<void> {
+  await s3.send(new PutObjectCommand({
+    Bucket: config.S3_EXPORT_BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: "application/x-tar",
+    CacheControl: "private, max-age=0"
+  }));
+}
+
+export async function readExportObject(key: string): Promise<Buffer> {
+  const response = await s3.send(new GetObjectCommand({
+    Bucket: config.S3_EXPORT_BUCKET,
+    Key: key
+  }));
+  if (!response.Body) throw new Error("Export object body is empty");
+  return Buffer.from(await response.Body.transformToByteArray());
+}
+
+export async function exportObjectExists(key: string): Promise<boolean> {
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: config.S3_EXPORT_BUCKET, Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteExportObject(key: string): Promise<void> {
+  await s3.send(new DeleteObjectCommand({ Bucket: config.S3_EXPORT_BUCKET, Key: key }));
+}

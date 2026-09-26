@@ -25,7 +25,7 @@ infra/
   minio/     私有桶、公开桶和浏览器 CORS
   nginx/     Web 静态资源
   postgres/  PostGIS 初始化
-docs/        项目、API、隐私和运维文档
+docs/        项目、API、隐私、合规归档和运维文档
 ```
 
 ## 本地启动
@@ -104,4 +104,5 @@ VITE_TILE_URL=https://tiles.example.com/{z}/{x}/{y}.png
 - [项目规格](docs/项目文档.md)
 - [API 约定](docs/api.md)
 - [隐私与媒体处理](docs/privacy.md)
+- [数据合规归档（导出/法务保留/删除证明）](docs/compliance.md)
 - [部署与运维](docs/operations.md)

@@ -13,6 +13,7 @@ const NotificationsPage = () => import("../pages/NotificationsPage.vue");
 const CommentsPage = () => import("../pages/CommentsPage.vue");
 const SettingsPage = () => import("../pages/SettingsPage.vue");
 const ModerationPage = () => import("../pages/ModerationPage.vue");
+const DeletionCertificatePage = () => import("../pages/DeletionCertificatePage.vue");
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -31,6 +32,7 @@ export const router = createRouter({
     { path: "/me/notifications", name: "notifications", component: NotificationsPage, meta: { requiresAuth: true } },
     { path: "/me/settings", name: "settings", component: SettingsPage, meta: { requiresAuth: true } },
     { path: "/moderation", name: "moderation", component: ModerationPage, meta: { requiresAuth: true, requiresModerator: true } },
+    { path: "/compliance/deletion/:id", name: "deletion-certificate", component: DeletionCertificatePage, meta: { requiresAuth: true } },
     { path: "/:pathMatch(.*)*", redirect: "/map" }
   ],
   scrollBehavior: () => ({ top: 0 })

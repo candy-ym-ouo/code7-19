@@ -8,6 +8,7 @@ import { optionalAuth, requireAuth, requireVerifiedContributor } from "../auth";
 import { deleteObject, publicMediaUrl } from "../storage";
 import { config } from "../config";
 import { recordAudit } from "../audit";
+import { assertNoLegalHold } from "../legal-hold";
 
 type MediaRow = {
   id: string;
@@ -399,6 +400,7 @@ export async function featureRoutes(app: FastifyInstance) {
       if (!row) throw notFound("Feature not found");
       const canDelete = row.owner_id === request.user!.id || ["moderator", "admin"].includes(request.user!.role);
       if (!canDelete) throw forbidden();
+      await assertNoLegalHold("feature", params.id, row.owner_id);
 
       const mediaResult = await client.query<{
         id: string;

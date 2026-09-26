@@ -16,6 +16,7 @@ import {
 } from "../storage";
 import { enqueueMediaProcessing } from "../queue";
 import { recordAudit } from "../audit";
+import { assertNoLegalHold } from "../legal-hold";
 
 function extensionForMime(mime: string) {
   if (mime === "image/jpeg") return "jpg";
@@ -267,6 +268,7 @@ export async function mediaRoutes(app: FastifyInstance) {
     const media = result.rows[0];
     if (!media) throw notFound("Media not found");
     if (media.owner_id !== request.user!.id && !["moderator", "admin"].includes(request.user!.role)) throw forbidden();
+    await assertNoLegalHold("media", params.id, media.owner_id);
 
     const publishedReference = await query<{ exists: boolean }>(
       `SELECT EXISTS (

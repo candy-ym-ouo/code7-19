@@ -112,12 +112,25 @@ export async function processMediaJob(mediaId: string): Promise<void> {
   }
 }
 
+// 命中有效法务保留（直接挂在媒体上，或挂在其属主用户上）的行不得被任何清除路径选中。
+const NOT_HELD_SQL = `
+  NOT EXISTS (
+    SELECT 1 FROM legal_holds lh
+    WHERE lh.status = 'active'
+      AND (lh.expires_at IS NULL OR lh.expires_at > now())
+      AND (
+        (lh.target_type = 'media' AND lh.target_id = media_assets.id)
+        OR (lh.target_type = 'user' AND lh.target_id = media_assets.owner_id)
+      )
+  )`;
+
 export async function cleanupOriginalMedia(): Promise<void> {
   const abandoned = await pool.query<{ id: string; quarantine_object_key: string }>(
     `SELECT id, quarantine_object_key FROM media_assets
      WHERE privacy_status = 'quarantined'
        AND created_at < now() - interval '24 hours'
        AND deleted_at IS NULL
+       AND ${NOT_HELD_SQL}
      LIMIT 50`
   );
   for (const row of abandoned.rows) {
@@ -141,6 +154,7 @@ export async function cleanupOriginalMedia(): Promise<void> {
      WHERE delete_after IS NOT NULL AND delete_after <= now()
        AND quarantine_object_key IS NOT NULL
        AND privacy_status IN ('ready', 'manual_review', 'rejected', 'failed', 'deleted')
+       AND ${NOT_HELD_SQL}
      LIMIT 50`
   );
   for (const row of result.rows) {
@@ -193,6 +207,7 @@ export async function cleanupDeletedMediaObjects(): Promise<void> {
          OR thumbnail_object_key IS NOT NULL
          OR public_object_key IS NOT NULL
          OR public_thumbnail_object_key IS NOT NULL)
+       AND ${NOT_HELD_SQL}
      LIMIT 50`
   );
 
@@ -234,6 +249,15 @@ export async function markUnreferencedMediaDeleted(): Promise<void> {
        AND ma.created_at < now() - interval '7 days'
        AND NOT EXISTS (
          SELECT 1 FROM revision_media rm WHERE rm.media_id = ma.id
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM legal_holds lh
+         WHERE lh.status = 'active'
+           AND (lh.expires_at IS NULL OR lh.expires_at > now())
+           AND (
+             (lh.target_type = 'media' AND lh.target_id = ma.id)
+             OR (lh.target_type = 'user' AND lh.target_id = ma.owner_id)
+           )
        )`
   );
 }

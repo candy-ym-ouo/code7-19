@@ -23,6 +23,15 @@ function isUniqueViolation(error: unknown): boolean {
 const REFRESH_COOKIE = "map_refresh";
 const CSRF_COOKIE = "map_csrf";
 
+export function clearSessionCookies(reply: FastifyReply) {
+  reply.clearCookie(REFRESH_COOKIE, { path: "/api/v1/auth" });
+  reply.clearCookie(CSRF_COOKIE, { path: "/" });
+}
+
+export function revokeSessions(userId: string): Promise<unknown> {
+  return query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [userId]);
+}
+
 function userResponse(user: AuthUser) {
   return {
     id: user.id,
@@ -65,11 +74,6 @@ async function issueSession(user: AuthUser, reply: FastifyReply) {
     csrfToken,
     user: userResponse(user)
   };
-}
-
-function clearSessionCookies(reply: FastifyReply) {
-  reply.clearCookie(REFRESH_COOKIE, { path: "/api/v1/auth" });
-  reply.clearCookie(CSRF_COOKIE, { path: "/" });
 }
 
 function verificationEmail(token: string) {
@@ -316,43 +320,5 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await loadUser(request.user!.id);
     if (!user) throw new AppError(404, "NOT_FOUND", "Account not found");
     return userResponse(user);
-  });
-
-  app.post("/me/export", { preHandler: requireAuth }, async (request) => {
-    const userId = request.user!.id;
-    const [features, comments, confirmations] = await Promise.all([
-      query(
-        `SELECT mf.id, mf.status, mf.created_at, fr.payload
-         FROM map_features mf
-         JOIN feature_revisions fr ON fr.id = COALESCE(mf.current_revision_id, (
-           SELECT id FROM feature_revisions WHERE feature_id = mf.id ORDER BY revision_no DESC LIMIT 1
-         ))
-         WHERE mf.owner_id = $1 ORDER BY mf.created_at DESC`,
-        [userId]
-      ),
-      query("SELECT id, feature_id, body, status, created_at FROM comments WHERE author_id = $1 ORDER BY created_at DESC", [userId]),
-      query("SELECT feature_id, result, note, created_at FROM feature_confirmations WHERE user_id = $1 ORDER BY created_at DESC", [userId])
-    ]);
-    return {
-      exportedAt: new Date().toISOString(),
-      user: userResponse(request.user!),
-      features: features.rows,
-      comments: comments.rows,
-      confirmations: confirmations.rows
-    };
-  });
-
-  app.post("/me/delete", { preHandler: requireAuth }, async (request, reply) => {
-    await transaction(async (client) => {
-      await client.query(
-        `UPDATE users
-         SET status = 'deletion_pending', deleted_at = now(), updated_at = now()
-         WHERE id = $1`,
-        [request.user!.id]
-      );
-      await client.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1", [request.user!.id]);
-    });
-    clearSessionCookies(reply);
-    return { status: "deletion_pending", gracePeriodDays: 30 };
   });
 }

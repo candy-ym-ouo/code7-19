@@ -82,6 +82,42 @@ export async function deleteObject(bucket: string, key: string): Promise<void> {
   await internalS3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
+export async function putExportObject(key: string, body: Buffer): Promise<void> {
+  await internalS3.send(new PutObjectCommand({
+    Bucket: config.S3_EXPORT_BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: "application/x-tar",
+    ContentDisposition: `attachment; filename="${key.split("/").pop() ?? "export.tar"}"`,
+    CacheControl: "private, max-age=0"
+  }));
+}
+
+export async function deleteExportObject(key: string): Promise<void> {
+  await internalS3.send(new DeleteObjectCommand({ Bucket: config.S3_EXPORT_BUCKET, Key: key }));
+}
+
+export async function exportObjectExists(key: string): Promise<boolean> {
+  try {
+    await internalS3.send(new HeadObjectCommand({ Bucket: config.S3_EXPORT_BUCKET, Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function createExportDownloadUrl(key: string, expiresIn = 600): Promise<string> {
+  return getSignedUrl(
+    internalS3,
+    new GetObjectCommand({
+      Bucket: config.S3_EXPORT_BUCKET,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${key.split("/").pop() ?? "export.tar"}"`
+    }),
+    { expiresIn }
+  );
+}
+
 export function publicMediaUrl(key: string | null | undefined): string | null {
   return key ? `${config.PUBLIC_MEDIA_BASE_URL.replace(/\/$/, "")}/${key}` : null;
 }
