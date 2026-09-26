@@ -88,3 +88,19 @@
 | `POST` | `/moderation/comments/:id/hide` | 隐藏评论 |
 | `POST` | `/moderation/reports/:id/resolve` | 处理举报 |
 | `GET` | `/moderation/audit` | 管理员审计日志 |
+
+## 合规接口
+
+均需管理员角色；`/compliance/exports/:id/download` 同时允许数据主体本人。详见 [合规归档](compliance.md)。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/compliance/cases` | 合规案件列表 |
+| `POST` | `/compliance/exports` | 创建导出案件 |
+| `GET` | `/compliance/exports/:id/download` | 获取导出归档短期下载地址 |
+| `POST` | `/compliance/legal-holds` | 建立法务保留 |
+| `POST` | `/compliance/legal-holds/:id/release` | 解除法务保留 |
+| `POST` | `/compliance/deletions` | 创建删除案件（带保留期） |
+| `GET` | `/compliance/deletions/:id/certificate` | 获取删除证明 |
+| `GET` | `/compliance/audit` | 合规审计链事件 |
+| `GET` | `/compliance/audit/verify` | 重放验证审计链完整性 |

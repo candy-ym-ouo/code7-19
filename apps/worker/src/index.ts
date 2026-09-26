@@ -4,7 +4,7 @@ import { config } from "./config";
 import { pool } from "./db";
 import { processMediaJob, cleanupOriginalMedia, cleanupDeletedMediaObjects, markStaleFeatures, recoverStuckMedia, markUnreferencedMediaDeleted } from "./media-job";
 import { dispatchOutbox, recoverStuckOutbox } from "./outbox";
-import { purgeDeletedAccounts } from "./account-job";
+import { processComplianceCases } from "./compliance-job";
 
 const redisOptions = { maxRetriesPerRequest: null } as const;
 const queueConnection = new IORedis(config.REDIS_URL, redisOptions);
@@ -62,7 +62,7 @@ async function maintenanceTick() {
     await markUnreferencedMediaDeleted();
     await cleanupDeletedMediaObjects();
     await markStaleFeatures();
-    await purgeDeletedAccounts();
+    await processComplianceCases();
   } catch (error) {
     console.error({ error }, "maintenance tick failed");
   } finally {

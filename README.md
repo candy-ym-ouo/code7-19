@@ -104,4 +104,5 @@ VITE_TILE_URL=https://tiles.example.com/{z}/{x}/{y}.png
 - [项目规格](docs/项目文档.md)
 - [API 约定](docs/api.md)
 - [隐私与媒体处理](docs/privacy.md)
+- [数据合规归档](docs/compliance.md)
 - [部署与运维](docs/operations.md)

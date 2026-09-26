@@ -14,6 +14,7 @@ import { query, transaction } from "../db";
 import { AppError } from "../errors";
 import { loadUser, requireAuth, signAccessToken, type AuthUser } from "../auth";
 import { queueOutbox } from "../audit";
+import { appendComplianceEvent } from "../compliance";
 import { enqueueOutbox } from "../queue";
 
 function isUniqueViolation(error: unknown): boolean {
@@ -343,14 +344,41 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.post("/me/delete", { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.user!.id;
     await transaction(async (client) => {
+      const holds = await client.query<{ count: string }>(
+        "SELECT count(*)::text AS count FROM legal_holds WHERE user_id = $1 AND released_at IS NULL",
+        [userId]
+      );
+      if (Number(holds.rows[0]!.count) > 0) {
+        throw new AppError(409, "LEGAL_HOLD_ACTIVE", "Account is under an active legal hold and cannot be deleted");
+      }
       await client.query(
         `UPDATE users
          SET status = 'deletion_pending', deleted_at = now(), updated_at = now()
          WHERE id = $1`,
-        [request.user!.id]
+        [userId]
       );
-      await client.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1", [request.user!.id]);
+      await client.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1", [userId]);
+      const deletionCase = await client.query<{ id: string }>(
+        `INSERT INTO compliance_cases(case_type, subject_user_id, status, reason, requested_by, retention_until)
+         VALUES ('deletion', $1, 'waiting_retention', $2, $1, now() + interval '30 days')
+         ON CONFLICT (subject_user_id) WHERE case_type = 'deletion'
+           AND status IN ('pending', 'waiting_retention', 'processing', 'blocked', 'failed')
+         DO NOTHING
+         RETURNING id`,
+        [userId, "self_service_account_deletion"]
+      );
+      const caseId = deletionCase.rows[0]?.id;
+      if (caseId) {
+        await appendComplianceEvent(client, {
+          caseId,
+          actorId: userId,
+          action: "deletion.requested",
+          subjectUserId: userId,
+          metadata: { retentionDays: 30, source: "self_service" }
+        });
+      }
     });
     clearSessionCookies(reply);
     return { status: "deletion_pending", gracePeriodDays: 30 };

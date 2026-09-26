@@ -212,6 +212,49 @@ export const confirmationSchema = z.object({
   note: z.string().trim().max(500).optional()
 });
 
+export const COMPLIANCE_CASE_TYPES = ["export", "legal_hold", "deletion"] as const;
+export type ComplianceCaseType = (typeof COMPLIANCE_CASE_TYPES)[number];
+
+export const COMPLIANCE_CASE_STATUSES = [
+  "pending",
+  "active",
+  "waiting_retention",
+  "processing",
+  "blocked",
+  "completed",
+  "failed",
+  "cancelled"
+] as const;
+export type ComplianceCaseStatus = (typeof COMPLIANCE_CASE_STATUSES)[number];
+
+export const createExportCaseSchema = z.object({
+  userId: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500)
+});
+
+export const createLegalHoldSchema = z.object({
+  userId: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500),
+  releaseAfter: z.iso.datetime({ offset: true }).optional()
+});
+
+export const releaseLegalHoldSchema = z.object({
+  reason: z.string().trim().min(3).max(500)
+});
+
+export const createDeletionCaseSchema = z.object({
+  userId: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500),
+  retentionDays: z.number().int().min(0).max(3650).optional()
+});
+
+export const complianceCaseQuerySchema = z.object({
+  type: z.enum(COMPLIANCE_CASE_TYPES).optional(),
+  status: z.enum(COMPLIANCE_CASE_STATUSES).optional(),
+  userId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(100)
+});
+
 export const categoryDefinitions = [
   {
     key: "bench",
